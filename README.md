@@ -2,10 +2,38 @@ mkinitcpio TPM2 hook
 ====================
 
 This mkinitcpio hook allows for an encrypted root device to use a key sealed by
-a TPM 2.0. It should be placed immediately before the `encrypt` hook in
+a TPM 2.0.
+
+During boot, the hook will initialize the TPM and attempt to unseal the key. If
+the key is successfully unsealed, it will be passed to the `encrypt` hook to
+perform the actual decryption of the root file system.
+
+Depending on the PCR banks to which the sealed key is bound, system changes such
+as kernel updates or firmware adjustments may prevent the key from being
+unsealed. If this happens, the disk must be manually unlocked with a passphrase
+and a new sealed key file needs to be generated. For this reason, it is CRUCIAL
+to add a separate "recovery" passphrase to the LUKS keys.
+
+
+Use
+---
+
+The `tpm2` hook should be placed immediately before the `encrypt` hook in
 `/etc/mkinitcpio.conf`.
 
-    HOOKS="base udev ... block tpm2 encrypt filesystems 
+    HOOKS="... block tpm2 encrypt filesystems ...
+
+You may also need to add the `vfat` file system driver to the `MODULES` array:
+
+    MODULES=(vfat)
+
+Finally, rebuild the initramfs:
+
+    # mkinitcpio -p linux
+
+
+TPM configuration
+-----------------
 
 The `tpm2` hook attempts to "unseal" a LUKS keyfile previously sealed by the
 TPM. The sealed files must reside on an unencrypted filesystem available to the
@@ -17,8 +45,15 @@ been persisted to `0x81000001`:
     # tpm2_create -C 0x81000001 -g sha256 -G keyedhash -a 0x492 -i /root/mykey \
       -L pcr.pol -r /boot/mykey.priv -u /boot/mykey.pub
 
-After generating a TPM-sealed key, both `tpmkey` and `tpmpcr` should be specified
-on the kernel command line.
+
+Kernel command line parameters
+------------------------------
+
+The hook is controlled by a number of kernel command line parameters. Minimally,
+after generating a TPM-sealed key, both `tpmkey` and `tpmpcr` should be
+specified.
+
+### tpmkey
 
 The `tpmkey` parameter has several formats:
 
@@ -37,9 +72,14 @@ partition mounted at `/boot`:
 
     tpmkey=/dev/sda1:/mykey:0x81000001
 
+If `[device]` is `rootfs`, the key files will be read from the initramfs root
+file system.
+
 Setting `[device]` to 'nvram' indicates that the key is stored in TPM NVRAM. In
 this case `[index]` is the NVRAM area index, `[offset]` is the offset of the key
 in bytes and `[size]` is the size of the key in bytes.
+
+### tpmpcr
 
 The `tpmpcr` parameter should hold the TPM2 PCR bank specification that will
 unlock the sealed key.
@@ -51,15 +91,19 @@ with each set of banks.
 
     tpmpcr=sha1:0,2,4,7|sha1:0,2,7
 
-Instead of a bank specification, the first item in the `tpmpcr` parameter may be
-used to indicate a PCR to extend _after_ the key has been unsealed.
+### tpmextend
 
-    extend:[pcrnum]:[alg]
+The `tpmextend` parameter may be used to indicate a PCR to extend _after_ the
+key has been unsealed.
 
-Where `[pcrnum]` is the PCR number to extend and `[alg]` is the bank algorithm.
+    tpmextend=[alg]:[pcrnum]
+
+Where `[alg]` is the bank algorithm and `[pcrnum]` is the PCR number to extend.
 For example, to extend PCR 8 in the sha1 bank:
 
-    tpmpcr=extend:8:sha1|sha1:0,2,7
+    tpmextend=sha1:8
+
+### tpmprompt
 
 If the `tpmprompt` command line parameter is set, the user will be prompted for
 the parent encryption key password during boot. This password will be used while
@@ -68,26 +112,13 @@ NVRAM.
 
     tpmprompt=1
 
+### Other parameters
+
+If required, the TPM device can be set using `tpmdev`. The default is the in-
+kernel resource manager, `/dev/tpmrm0`.
+
 In recent kernel versions, some systems may not generate enough entropy early in
 the boot process to utilize the TPM. There are several possible solutions to
 this problem. On x86_64 systems, the following kernel parameter may help:
 
     random.trust_cpu=on
-
-You may also need to add the `vfat` file system driver to the `MODULES` array:
-
-    MODULES=(vfat)
-
-Finally, rebuild the initramfs:
-
-    # mkinitcpio -p linux
-
-During boot, the hook will initialize the TPM and attempt to unseal the key. If
-the key is successfully unsealed, it will be passed to the `encrypt` hook to
-perform the actual decryption of the root file system.
-
-Depending on the PCR banks to which the sealed key is bound, system changes such
-as kernel updates or firmware adjustments may prevent the key from being
-unsealed. If this happens, the disk must be manually unlocked with a passphrase
-and a new sealed key file needs to be generated. For this reason, it is CRUCIAL
-to add a separate "recovery" passphrase to the LUKS keys.

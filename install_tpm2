@@ -41,6 +41,9 @@ specified, '.pub' and '.priv' will be appended to the path to locate the
 public and private files, respectively. The absolute [publicpath] and
 [privatepath] can be specified separately if needed.
 
+If [device] is rootfs, the key files will be read from the initramfs root
+file system.
+
 Setting [device] to 'nvram' indicates that the key is stored in TPM NVRAM.
 In this case [index] is the NVRAM area index, [offset] is the offset of
 the key in bytes and [size] is the size of the key in bytes.
@@ -49,8 +52,12 @@ the key in bytes and [size] is the size of the key in bytes.
 sealed key. Multiple specs can be separated by a '|' and key decryption
 will be attempted with each set of banks.
 
-The first PCR bank spec may be used to indicate a PCR to extend after
-unsealing the key.
+The 'tpmextend' parameter may be used to indicate a PCR to extend after the
+key has been unsealed:
+
+    tpmextend=[alg]:[pcrnum]
+
+Where [alg] is the bank algorithm and [pcrnum] is the PCR number to extend.
 
 If the 'tpmprompt' command line parameter is set, the user will be
 prompted for the parent encryption key password during boot. This password

@@ -1,9 +1,9 @@
 #!/usr/bin/ash
 
 run_hook() {
-    local ckeyfile tpmkeypub tpmkeypriv tpmkeyparent tpmkeyindex tpmkeyoffset tpmkeysize
-    local tkdev tkarg1 tkarg2 tkarg3 resolved extendargs pcrbanklist pcrextendnum pcrextendalg
-    local tpmload pcrbank unseal unsealout tpmok noop
+    local ckeyfile tpmkeypub tpmkeypriv tpmkeyparent tpmkeyindex tpmkeyoffset
+    local tpmkeysize tkdev tkarg1 tkarg2 tkarg3 resolved pcrextendnum
+    local pcrextendalg tpmload pcrbank unseal unsealout tpmok
 
     # This file will be loaded by the encrypt hook
     ckeyfile="/crypto_keyfile.bin"
@@ -16,7 +16,7 @@ run_hook() {
     [ -z $tpmdev ] && tpmdev="/dev/tpmrm0"
     export TPM2TOOLS_TCTI="device:${tpmdev}"
 
-    # Parse tpmkey command line argument
+    # Parse tpmkey command line parameter
     if [ -n "$tpmkey" ]; then
         IFS=: read tkdev tkarg1 tkarg2 tkarg3 <<EOF
 $tpmkey
@@ -71,30 +71,20 @@ EOF
         fi
     fi
 
-    # Parse the tpmpcr variable
-    if [ -n "$tpmpcr" ]; then
-        case "$tpmpcr" in
-        extend*)
-            IFS="|" read extendargs pcrbanklist <<EOF
-$tpmpcr
+    # Parse the tpmextend command line parameter
+    if [ -n "$tpmextend" ]; then
+        IFS=: read pcrextendalg pcrextendnum <<EOF
+$tpmextend
 EOF
-            IFS=: read noop pcrextendnum pcrextendalg <<EOF
-$extendargs
-EOF
-            unset IFS
-            ;;
-        *)
-            pcrbanklist="$tpmpcr"
-            ;;
-        esac
+        unset IFS
     fi
 
     # We must have a PCR list to retrieve a key
-    [ -n "$tpmkey" ] && [ -z "$pcrbanklist" ] && err "TPM PCR bank not specified"
+    [ -n "$tpmkey" ] && [ -z "$tpmpcr" ] && err "TPM PCR bank not specified"
 
 
     # If we have a key and PCR list, decrypt it
-    if [ -n "$pcrbanklist" -a -n "$tpmkeyindex" ] || [ -n "$pcrbanklist" -a -f "$tpmkeypub" -a -f "$tpmkeypriv" ]; then
+    if [ -n "$tpmpcr" -a -n "$tpmkeyindex" ] || [ -n "$tpmpcr" -a -f "$tpmkeypub" -a -f "$tpmkeypriv" ]; then
         # Load key object if stored on disk
         tpmload=0
         if [ -z "$tpmkeyindex" ]; then
@@ -117,7 +107,7 @@ EOF
         unseal=1
         if [ $tpmload -eq 0 ]; then
             IFS="|"
-            for pcrbank in $pcrbanklist; do
+            for pcrbank in $tpmpcr; do
                 if [ -n "$tpmkeyindex" ]; then
                     unsealout=$(tpm2_nvread -Q $tpmkeyoffset $tpmkeysize -P "pcr:${pcrbank}" -o $ckeyfile "$tpmkeyindex" 2>&1)
                     unseal=$?
@@ -161,7 +151,7 @@ EOF
     if [ -n "$pcrextendnum" ] && [ -n "$pcrextendalg" ]; then
         case "$pcrextendalg" in
         sha1|sha224|sha256|sha384|sha512)
-            tpm2_pcrextend ${pcrextendnum}:${pcrextendalg}=$("${pcrextendalg}sum" /hooks/tpm2 2>/dev/null | cut -f1 -d' ') >/dev/null 2>&1
+            tpm2_pcrextend ${pcrextendnum}:${pcrextendalg}=$("${pcrextendalg}sum" /proc/cmdline 2>/dev/null | cut -f1 -d' ') >/dev/null 2>&1
             if [ $? -ne 0 ]; then
                 err "Could not extend TPM PCR"
             fi
