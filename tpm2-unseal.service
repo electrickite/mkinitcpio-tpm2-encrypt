@@ -1,0 +1,12 @@
+[Unit]
+Description=Unseal key from tpm2
+DefaultDependencies=no
+Before=cryptsetup-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/tpm2_encrypt unseal
+
+[Install]
+WantedBy=cryptsetup-pre.target
