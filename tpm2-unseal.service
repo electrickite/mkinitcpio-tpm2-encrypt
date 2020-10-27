@@ -6,7 +6,7 @@ Before=cryptsetup-pre.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/tpm2_encrypt unseal
+ExecStart=/usr/bin/tpm2_encrypt_hook unseal
 
 [Install]
 WantedBy=cryptsetup-pre.target

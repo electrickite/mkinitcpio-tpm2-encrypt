@@ -6,7 +6,7 @@ Before=initrd-cleanup.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/tpm2_encrypt cleanup
+ExecStart=/usr/bin/tpm2_encrypt_hook cleanup
 
 [Install]
 WantedBy=cryptsetup.target

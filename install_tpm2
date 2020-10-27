@@ -16,6 +16,8 @@ build() {
 
     add_binary "/usr/lib/libtss2-tcti-device.so.0"
 
+    [ -f /etc/tpm2-encrypt/params ] && add_file "/etc/tpm2-encrypt/params"
+
     add_runscript
 }
 

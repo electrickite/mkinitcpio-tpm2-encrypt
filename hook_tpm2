@@ -25,8 +25,8 @@ load_params() {
             tpmdev=*)
                 tpmdev="${param#tpmdev=}"
             ;;
-            tpmckeyfile=*)
-                tpmckeyfile="${param#tpmckeyfile=}"
+            ckeyfile=*)
+                ckeyfile="${param#ckeyfile=}"
             ;;
         esac
     done
@@ -34,7 +34,7 @@ load_params() {
 
 load_defaults(){
     # This file will be loaded by the encrypt hook
-    tpmckeyfile="/crypto_keyfile.bin"
+    ckeyfile="/crypto_keyfile.bin"
     # Rootfs location for sealed key files
     tpmkeypub="/tpm_keyfile.pub"
     tpmkeypriv="/tpm_keyfile.priv"
@@ -51,7 +51,7 @@ process_params(){
 }
 
 run_hook() {
-    local tpmkeypub tpmkeypriv tpmkeyparent tpmkeyindex tpmkeyoffset
+    local ckeyfile tpmkeypub tpmkeypriv tpmkeyparent tpmkeyindex tpmkeyoffset
     local tpmkeysize tkdev tkarg1 tkarg2 tkarg3 resolved pcrextendnum
     local pcrextendalg tpmload pcrbank unseal unsealout tpmok
 
@@ -60,7 +60,7 @@ run_hook() {
     export TPM2TOOLS_TCTI="device:${tpmdev}"
 
     # Parse tpmkey command line parameter
-    if [[ -n "$tpmkey" ]]; then
+    if [ -n "$tpmkey" ]; then
         IFS=: read tkdev tkarg1 tkarg2 tkarg3 <<EOF
 $tpmkey
 EOF
@@ -152,10 +152,10 @@ EOF
             IFS="|"
             for pcrbank in $tpmpcr; do
                 if [ -n "$tpmkeyindex" ]; then
-                    unsealout=$(tpm2_nvread -Q $tpmkeyoffset $tpmkeysize -P "pcr:${pcrbank}" -o $tpmckeyfile "$tpmkeyindex" 2>&1)
+                    unsealout=$(tpm2_nvread -Q $tpmkeyoffset $tpmkeysize -P "pcr:${pcrbank}" -o $ckeyfile "$tpmkeyindex" 2>&1)
                     unseal=$?
                 else
-                    unsealout=$(tpm2_unseal -Q -c /tpmobject.ctx -p "pcr:${pcrbank}" -o "$tpmckeyfile" 2>&1)
+                    unsealout=$(tpm2_unseal -Q -c /tpmobject.ctx -p "pcr:${pcrbank}" -o "$ckeyfile" 2>&1)
                     unseal=$?
                 fi
                 if [ $unseal -eq 0 ]; then break; fi
@@ -185,7 +185,7 @@ EOF
         fi
 
         if [ $tpmok -eq 0 ]; then
-            rm -f "$tpmckeyfile"
+            rm -f "$ckeyfile"
             msg ":: TPM Could not decrypt LUKS key"
         fi
     fi
@@ -212,10 +212,15 @@ EOF
 run_cleanuphook() {
     process_params
     # Securely delete key if still present
-    if [ -f "$tpmckeyfile" ]; then
-        dd if=/dev/urandom of="$tpmckeyfile" bs=$(stat -c "%s" "$tpmckeyfile") count=1 conv=notrunc >/dev/null 2>&1
-        rm -f "$tpmckeyfile"
+    if [ -f "$ckeyfile" ]; then
+        dd if=/dev/urandom of="$ckeyfile" bs=$(stat -c "%s" "$ckeyfile") count=1 conv=notrunc >/dev/null 2>&1
+        rm -f "$ckeyfile"
     fi
+}
+
+print_key() {
+    process_params
+    cat "$ckeyfile"
 }
 
 # vim: set ft=sh ts=4 sw=4 et:

@@ -16,7 +16,7 @@ build() {
 
     add_binary "/usr/lib/libtss2-tcti-device.so.0"
 
-    add_file "/usr/bin/tpm2_encrypt"
+    add_file "/usr/bin/tpm2_encrypt_hook"
     add_file "/usr/lib/initcpio/hooks/tpm2"
 
     add_systemd_unit "tpm2-unseal.service"
@@ -35,13 +35,7 @@ build() {
     mkdir -p "$BUILDROOT$WANTS"
     add_symlink "$WANTS/tpm2-cleanup.service" "/usr/lib/systemd/system/tpm2-cleanup.service"
 
-    [[ -f /etc/tpm2-encrypt/params ]] && add_file "/etc/tpm2-encrypt/params"
-
-    if [[ -f /etc/tpm2-encrypt/key.pub && -f /etc/tpm2-encrypt/key.priv ]]; then
-        add_file "/etc/tpm2-encrypt/key.pub"
-        add_file "/etc/tpm2-encrypt/key.priv"
-    fi
-
+    [ -f /etc/tpm2-encrypt/params ] && add_file "/etc/tpm2-encrypt/params"
 }
 
 
