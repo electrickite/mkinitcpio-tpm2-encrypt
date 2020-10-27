@@ -1,0 +1,77 @@
+#!/usr/bin/sh
+
+HOOK_SCRIPT=/usr/lib/initcpio/hooks/tpm2;
+
+err(){
+    echo $1 >&2;
+    echo "$1" | /usr/bin/systemd-cat --priority="err" --identifier="tpm2_encrypt"
+    exit;
+}
+
+msg(){
+    echo $1;
+    echo "$1" | /usr/bin/systemd-cat --priority="info" --identifier="tpm2_encrypt"
+    exit;
+}
+
+resolve_device(){
+    echo $1
+}
+
+process_unseal(){
+    modprobe tpm_tis;
+    modprobe tpm_crb;
+    modprobe rng_core;
+    run_hook;
+}
+
+process_cleanup(){
+    run_cleanuphook;
+}
+
+process_output(){
+    cat "/crypto_keyfile.bin";
+}
+
+process_help(){
+    cat <<HELPEOF
+Script adapts tpm2 unsealing init hook calls to systemd services.
+
+Usage:
+    # tpm2_encrypt [MODE]
+
+Modes:
+    - unseal
+        Unseals the key by tpm2 to /crypto_keyfile.bin
+    - cleanup
+        Removes the key file /crypto_keyfile.bin
+    - keyscript
+        Unseals the key by tpm2, outputs the key to STDOUT and cleans up the key.
+    - help
+        Shows this help.
+HELPEOF
+}
+
+process_command(){
+    case "$1" in
+        unseal)
+            process_unseal;
+        ;;
+        cleanup)
+            process_cleanup;
+        ;;
+        keyscript)
+            process_unseal;
+            process_output;
+            process_cleanup;
+        ;;
+        *)
+            process_help;
+        ;;
+    esac;
+}
+
+source $HOOK_SCRIPT;
+process_command $1
+
+# vim: set ft=sh ts=4 sw=4 et:

@@ -1,0 +1,12 @@
+[Unit]
+Description=Clean tpm2 unsealed key
+DefaultDependencies=no
+Before=initrd-cleanup.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/tpm2_encrypt cleanup
+
+[Install]
+WantedBy=cryptsetup.target

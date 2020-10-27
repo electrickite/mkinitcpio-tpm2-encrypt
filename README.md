@@ -22,6 +22,12 @@ The `tpm2` hook should be placed immediately before the `encrypt` hook in
 `/etc/mkinitcpio.conf`.
 
     HOOKS="... block tpm2 encrypt filesystems ...
+    
+In case of systemd init the `sd-tpm2` hook should be used instead and placed 
+immediately before the `sd-encrypt` hook in `/etc/mkinitcpio.conf`.
+
+
+    HOOKS="... block sd-tpm2 sd-encrypt filesystems ...
 
 You may also need to add the `vfat` file system driver to the `MODULES` array:
 
